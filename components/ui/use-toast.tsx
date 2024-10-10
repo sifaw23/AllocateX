@@ -114,6 +114,26 @@ type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
 
 type ToastActionElement = React.ReactElement<typeof ToastAction>
 
+// Add the useToast hook
+const useToast = () => {
+  const [toasts, setToasts] = React.useState<ToastProps[]>([])
+
+  const toast = React.useCallback(({ title, description, action, ...props }: ToastProps) => {
+    setToasts((currentToasts) => [
+      ...currentToasts,
+      { title, description, action, ...props } as ToastProps,
+    ])
+  }, [])
+
+  const dismissToast = React.useCallback((id: string) => {
+    setToasts((currentToasts) =>
+      currentToasts.filter((toast) => toast.id !== id)
+    )
+  }, [])
+
+  return { toast, dismissToast, toasts }
+}
+
 export {
   type ToastProps,
   type ToastActionElement,
@@ -124,4 +144,5 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
+  useToast,
 }
