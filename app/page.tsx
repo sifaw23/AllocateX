@@ -2,7 +2,6 @@
 'use client'
 
 import React from 'react'
-import { ToastProvider } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -11,13 +10,14 @@ import AddressTable from '@/components/address/AddressTable'
 import DataTools from '@/components/tools/DataTools'
 import { useAddressData } from '@/hooks/useAddressData'
 import { useDarkMode } from '@/hooks/useDarkMode'
+import { Toaster } from "@/components/ui/toaster"
 
 export default function EnhancedAllocateXPro() {
   const { darkMode, setDarkMode } = useDarkMode()
   const [activeTab, setActiveTab] = React.useState('addresses')
 
   return (
-    <ToastProvider>
+    <>
       <div className={`min-h-screen bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
         <div className="container mx-auto p-4 max-w-4xl">
           <Header darkMode={darkMode} setDarkMode={setDarkMode} />
@@ -41,6 +41,7 @@ export default function EnhancedAllocateXPro() {
           <Footer />
         </div>
       </div>
-    </ToastProvider>
+      <Toaster />
+    </>
   )
 }

@@ -1,9 +1,8 @@
 // hooks/useFileUpload.ts
 import { useState, useCallback } from 'react'
-import { utils, read } from 'xlsx'
+import { read, utils } from 'xlsx'
 import { AddressData, FileUploadResult } from '@/types'
-import { useToast } from "@/components/ui/use-toast"
-import { validateAddressData } from '@/utils/validators'
+import { useToast } from '@/components/ui/use-toast'
 
 export function useFileUpload() {
   const [inputData, setInputData] = useState('')
@@ -14,37 +13,36 @@ export function useFileUpload() {
     return lines
       .map(line => {
         const [address, amount] = line.split(',').map(item => item.trim())
-        return { 
-          address, 
-          amount: Math.round(parseFloat(amount) || 0) 
+        return {
+          address,
+          amount: Math.round(parseFloat(amount) || 0)
         }
       })
-      .filter(validateAddressData)
+      .filter(item => item.address && !isNaN(item.amount))
   }, [])
 
   const parseExcel = useCallback((content: ArrayBuffer): AddressData[] => {
     const workbook = read(content, { type: 'array' })
-    const sheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[sheetName]
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]]
     const jsonData = utils.sheet_to_json(worksheet, { header: ['address', 'amount'] })
     return jsonData
       .map((row: any) => ({
-        address: row.address,
+        address: row.address?.toString() || '',
         amount: Math.round(parseFloat(row.amount) || 0)
       }))
-      .filter(validateAddressData)
+      .filter(item => item.address && !isNaN(item.amount))
   }, [])
 
   const handleFileUpload = useCallback(async (file: File): Promise<FileUploadResult> => {
     try {
-      const content = await file.arrayBuffer()
+      const buffer = await file.arrayBuffer()
       let parsedData: AddressData[]
 
       if (file.name.endsWith('.csv')) {
-        const text = new TextDecoder().decode(content)
+        const text = new TextDecoder().decode(buffer)
         parsedData = parseCSV(text)
       } else {
-        parsedData = parseExcel(content)
+        parsedData = parseExcel(buffer)
       }
 
       if (parsedData.length === 0) {
@@ -61,7 +59,7 @@ export function useFileUpload() {
     } catch (error) {
       return {
         success: false,
-        error: 'Error processing file'
+        error: error instanceof Error ? error.message : 'Error processing file'
       }
     }
   }, [parseCSV, parseExcel])
@@ -69,7 +67,9 @@ export function useFileUpload() {
   return {
     inputData,
     setInputData,
-    handleFileUpload
-  }
+    handleFileUpload,
+  } as const
 }
+
+export type UseFileUploadReturn = ReturnType<typeof useFileUpload>
 

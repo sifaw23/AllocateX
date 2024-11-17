@@ -1,14 +1,31 @@
 // hooks/useTableControls.ts
-import { useState, useMemo } from 'react'
-import { AddressData, TableControls } from '@/types'
+import { useState, useMemo, useCallback } from 'react'
+import type { AddressData } from '@/types'
 
-export function useTableControls(tableData: AddressData[]) {
+export interface TableControls {
+  sortOrder: 'asc' | 'desc'
+  currentPage: number
+  searchTerm: string
+  selectedAddresses: Set<string>
+}
+
+export interface UseTableControlsReturn {
+  controls: TableControls
+  updateControls: (updates: Partial<TableControls>) => void
+  paginatedData: AddressData[]
+  sortedAndFilteredData: AddressData[]
+  pageCount: number
+  itemsPerPage: number
+}
+
+export function useTableControls(tableData: AddressData[]): UseTableControlsReturn {
   const [controls, setControls] = useState<TableControls>({
     sortOrder: 'desc',
     currentPage: 1,
     searchTerm: '',
-    selectedAddresses: new Set()
+    selectedAddresses: new Set<string>()
   })
+
   const itemsPerPage = 10
 
   const sortedAndFilteredData = useMemo(() => {
@@ -17,9 +34,9 @@ export function useTableControls(tableData: AddressData[]) {
         item.address.toLowerCase().includes(controls.searchTerm.toLowerCase())
       )
       .sort((a, b) => {
-        return controls.sortOrder === 'asc' ? 
-          a.amount - b.amount : 
-          b.amount - a.amount
+        return controls.sortOrder === 'asc' 
+          ? a.amount - b.amount 
+          : b.amount - a.amount
       })
   }, [tableData, controls.sortOrder, controls.searchTerm])
 
@@ -28,28 +45,16 @@ export function useTableControls(tableData: AddressData[]) {
     return sortedAndFilteredData.slice(startIndex, startIndex + itemsPerPage)
   }, [sortedAndFilteredData, controls.currentPage])
 
-  const pageCount = Math.ceil(sortedAndFilteredData.length / itemsPerPage)
-
-  const updateControls = (updates: Partial<TableControls>) => {
+  const updateControls = useCallback((updates: Partial<TableControls>) => {
     setControls(prev => ({ ...prev, ...updates }))
-  }
-
-  const resetControls = () => {
-    setControls({
-      sortOrder: 'desc',
-      currentPage: 1,
-      searchTerm: '',
-      selectedAddresses: new Set()
-    })
-  }
+  }, [])
 
   return {
     controls,
     updateControls,
-    resetControls,
     paginatedData,
     sortedAndFilteredData,
-    pageCount,
-    itemsPerPage
+    pageCount: Math.ceil(sortedAndFilteredData.length / itemsPerPage),
+    itemsPerPage,
   }
 }

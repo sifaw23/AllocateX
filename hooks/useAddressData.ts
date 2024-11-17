@@ -1,65 +1,44 @@
 // hooks/useAddressData.ts
-import { useState, useEffect } from 'react'
-import { AddressData, ToastMessage } from '@/types'
-import { useToast } from "@/components/ui/use-toast"
+import { useState, useCallback } from 'react'
+import { useLocalStorage } from './useLocalStorage'
+import { AddressData } from '@/types'
+import { useToast } from '@/components/ui/use-toast'
 
 export function useAddressData() {
-  const [tableData, setTableData] = useState<AddressData[]>([])
+  const [tableData, setTableData] = useLocalStorage<AddressData[]>('addressData', [])
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
-  useEffect(() => {
-    try {
-      const savedData = localStorage.getItem('allocateXProData')
-      if (savedData) {
-        setTableData(JSON.parse(savedData))
-      }
-    } catch (error) {
-      console.error('Error loading data:', error)
-      toast({
-        title: "Error loading data",
-        description: "There was an error loading your saved data.",
-        variant: "destructive"
-      })
-    }
-  }, [])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('allocateXProData', JSON.stringify(tableData))
-    } catch (error) {
-      console.error('Error saving data:', error)
-      toast({
-        title: "Error saving data",
-        description: "There was an error saving your data.",
-        variant: "destructive"
-      })
-    }
-  }, [tableData])
-
-  const addOrUpdateAddresses = (newData: AddressData[]) => {
+  const addOrUpdateAddresses = useCallback((newData: AddressData[]) => {
     setTableData(prevData => {
-      const newTableData = [...prevData]
+      const updatedData = [...prevData]
       newData.forEach(item => {
-        const existingIndex = newTableData.findIndex(existing => existing.address === item.address)
+        const existingIndex = updatedData.findIndex(existing => 
+          existing.address.toLowerCase() === item.address.toLowerCase()
+        )
         if (existingIndex !== -1) {
-          newTableData[existingIndex].amount += item.amount
+          updatedData[existingIndex].amount += item.amount
         } else {
-          newTableData.push(item)
+          updatedData.push(item)
         }
       })
-      return newTableData
+      return updatedData
     })
-  }
+  }, [setTableData])
 
-  const deleteAddresses = (addresses: Set<string>) => {
-    setTableData(prevData => prevData.filter(item => !addresses.has(item.address)))
-  }
+  const deleteAddresses = useCallback((addresses: Set<string>) => {
+    setTableData(prevData => 
+      prevData.filter(item => !addresses.has(item.address))
+    )
+  }, [setTableData])
 
-  const clearData = () => {
+  const clearData = useCallback(() => {
     setTableData([])
-    localStorage.removeItem('allocateXProData')
-  }
+    toast({
+      title: "Data cleared",
+      description: "All address data has been cleared."
+    })
+  }, [setTableData, toast])
 
   return {
     tableData,
@@ -68,7 +47,9 @@ export function useAddressData() {
     setIsLoading,
     addOrUpdateAddresses,
     deleteAddresses,
-    clearData
-  }
+    clearData,
+  } as const
 }
+
+export type UseAddressDataReturn = ReturnType<typeof useAddressData>
 
