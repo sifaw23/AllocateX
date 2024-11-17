@@ -1,34 +1,54 @@
 // components/address/AddressInput.tsx
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Upload, HelpCircle } from 'lucide-react'
-import { useAddressData } from '@/hooks/useAddressData'
-import { useFileUpload } from '@/hooks/useFileUpload'
+import { Loader2, Upload, HelpCircle, Trash2 } from 'lucide-react'
+import { useAddressData } from '@/context/AddressContext'
 import { useToast } from "@/components/ui/use-toast"
-import type { Toast } from "@/components/ui/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export default function AddressInput() {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { inputData, setInputData, handleFileUpload } = useFileUpload()
-  const { addOrUpdateAddresses, setIsLoading, isLoading } = useAddressData()
+  const [inputData, setInputData] = useState('')
+  const [showClearDialog, setShowClearDialog] = useState(false)
+  const { addOrUpdateAddresses, isLoading, setIsLoading, clearAllData } = useAddressData()
   const { toast } = useToast()
 
   const handleSubmit = async () => {
+    if (!inputData.trim()) {
+      toast({
+        title: "No data",
+        description: "Please enter some data first.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
       const lines = inputData.trim().split('\n')
-      const parsedData = lines.map(line => {
-        const [address, amount] = line.split(',').map(item => item.trim())
-        return { address, amount: Math.round(parseFloat(amount) || 0) }
-      }).filter(item => item.address && !isNaN(item.amount))
+      const parsedData = lines
+        .map(line => {
+          const [address, amount] = line.split(',').map(item => item.trim())
+          return { 
+            address, 
+            amount: Math.round(parseFloat(amount) || 0) 
+          }
+        })
+        .filter(item => item.address && !isNaN(item.amount) && item.amount > 0)
 
       if (parsedData.length === 0) {
         toast({
           title: "No valid data",
           description: "Please check your input format and try again.",
           variant: "destructive",
-        } as Toast)
+        })
         return
       }
 
@@ -37,13 +57,14 @@ export default function AddressInput() {
       toast({
         title: "Data processed",
         description: `${parsedData.length} entries have been added or updated.`,
-      } as Toast)
+      })
     } catch (error) {
+      console.error('Error processing data:', error)
       toast({
         title: "Error processing data",
         description: "There was an error processing your input.",
         variant: "destructive",
-      } as Toast)
+      })
     } finally {
       setIsLoading(false)
     }
@@ -55,26 +76,39 @@ export default function AddressInput() {
 
     setIsLoading(true)
     try {
-      const result = await handleFileUpload(file)
-      if (result.success && result.data) {
-        addOrUpdateAddresses(result.data)
+      const text = await file.text()
+      const lines = text.trim().split('\n')
+      const parsedData = lines
+        .map(line => {
+          const [address, amount] = line.split(',').map(item => item.trim())
+          return {
+            address,
+            amount: Math.round(parseFloat(amount) || 0)
+          }
+        })
+        .filter(item => item.address && !isNaN(item.amount) && item.amount > 0)
+
+      if (parsedData.length === 0) {
         toast({
-          title: "File processed",
-          description: `${result.data.length} entries have been added or updated.`,
-        } as Toast)
-      } else {
-        toast({
-          title: "Error processing file",
-          description: result.error || "Unknown error occurred",
+          title: "No valid data",
+          description: "The file contains no valid data.",
           variant: "destructive",
-        } as Toast)
+        })
+        return
       }
+
+      addOrUpdateAddresses(parsedData)
+      toast({
+        title: "File processed",
+        description: `${parsedData.length} entries have been added or updated.`,
+      })
     } catch (error) {
+      console.error('Error processing file:', error)
       toast({
         title: "Error processing file",
         description: "There was an error processing your file.",
         variant: "destructive",
-      } as Toast)
+      })
     } finally {
       setIsLoading(false)
       if (fileInputRef.current) {
@@ -83,6 +117,15 @@ export default function AddressInput() {
     }
   }
 
+  const handleClearData = () => {
+    clearAllData()
+    setShowClearDialog(false)
+    toast({
+      title: "Data cleared",
+      description: "All address data has been cleared.",
+      variant: "default",
+    })
+  }
 
   return (
     <div className="mb-6 space-y-4">
@@ -101,6 +144,29 @@ export default function AddressInput() {
             <HelpCircle className="h-4 w-4" />
           </Button>
         </label>
+
+        <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear All Data
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Clear All Data</DialogTitle>
+            </DialogHeader>
+            <p>Are you sure you want to clear all address data? This action cannot be undone.</p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowClearDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleClearData}>
+                Clear All
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Textarea
@@ -113,7 +179,7 @@ export default function AddressInput() {
       <div className="flex flex-col sm:flex-row gap-2">
         <Button 
           onClick={handleSubmit} 
-          disabled={isLoading}
+          disabled={isLoading || !inputData.trim()}
           className="flex-1"
         >
           {isLoading ? (

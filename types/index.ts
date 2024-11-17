@@ -11,14 +11,36 @@ export interface TableControls {
   selectedAddresses: Set<string>
 }
 
+export interface FileUploadResult {
+  success: boolean
+  data?: AddressData[]
+  error?: string
+}
+
+export interface PaginationInfo {
+  currentPage: number
+  pageCount: number
+  totalItems: number
+  itemsPerPage: number
+}
+
 export interface TableActionProps {
   selectedCount: number
   totalCount: number
   searchTerm: string
   onSearchChange: (term: string) => void
-  onDelete?: () => void
-  onExport?: (format: 'excel' | 'csv' | 'json') => void
+  onDelete: () => void
+  onExport: (format: 'excel' | 'csv' | 'json') => void
+  data?: AddressData[]
 }
+
+export interface ToastMessage {
+  title: string
+  description: string
+  variant?: 'default' | 'destructive'
+}
+
+export type SortOrder = 'asc' | 'desc'
 
 export interface PaginationProps {
   currentPage: number
@@ -27,8 +49,16 @@ export interface PaginationProps {
   totalItems: number
 }
 
-export interface FileUploadResult {
-  success: boolean
-  data?: AddressData[]
-  error?: string
+export interface PaginationRange {
+  start: number
+  end: number
+  totalPages: number
+}
+
+export interface UsePaginationReturn extends PaginationInfo {
+  setPage: (page: number) => void
+  nextPage: () => void
+  prevPage: () => void
+  canNextPage: boolean
+  canPrevPage: boolean
 }

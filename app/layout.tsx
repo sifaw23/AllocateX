@@ -1,18 +1,18 @@
-import { Metadata } from 'next'
+// app/layout.tsx
+import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { ThemeProvider } from "../components/theme-provider"
-import { Toaster } from "../components/ui/toaster"
-import "../styles/globals.css"
+import '@/styles/globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'AllocateX Pro',
-  description: 'Advanced address allocation and management tool',
+  title: 'AllocateX Pro - Address Management Tool',
+  description: 'Professional tool for managing Ethereum addresses and allocations',
   viewport: 'width=device-width, initial-scale=1',
-  icons: {
-    icon: '/favicon.ico',
-  },
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' }
+  ]
 }
 
 export default function RootLayout({
@@ -22,16 +22,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.ico" />
+      </head>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   )

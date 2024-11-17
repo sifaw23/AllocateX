@@ -1,13 +1,43 @@
 // hooks/useAddressData.ts
-import { useState, useCallback } from 'react'
-import { useLocalStorage } from './useLocalStorage'
-import { AddressData } from '@/types'
+import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/components/ui/use-toast'
+import type { AddressData } from '@/types'
 
 export function useAddressData() {
-  const [tableData, setTableData] = useLocalStorage<AddressData[]>('addressData', [])
+  const [tableData, setTableData] = useState<AddressData[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem('addressData')
+      if (savedData) {
+        setTableData(JSON.parse(savedData))
+      }
+    } catch (error) {
+      console.error('Error loading data:', error)
+      toast({
+        title: "Error loading data",
+        description: "There was an error loading your saved data.",
+        variant: "destructive"
+      })
+    }
+  }, [])
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('addressData', JSON.stringify(tableData))
+    } catch (error) {
+      console.error('Error saving data:', error)
+      toast({
+        title: "Error saving data",
+        description: "There was an error saving your data.",
+        variant: "destructive"
+      })
+    }
+  }, [tableData])
 
   const addOrUpdateAddresses = useCallback((newData: AddressData[]) => {
     setTableData(prevData => {
@@ -24,21 +54,18 @@ export function useAddressData() {
       })
       return updatedData
     })
-  }, [setTableData])
+  }, [])
 
   const deleteAddresses = useCallback((addresses: Set<string>) => {
     setTableData(prevData => 
       prevData.filter(item => !addresses.has(item.address))
     )
-  }, [setTableData])
+  }, [])
 
-  const clearData = useCallback(() => {
+  const clearAllData = useCallback(() => {
     setTableData([])
-    toast({
-      title: "Data cleared",
-      description: "All address data has been cleared."
-    })
-  }, [setTableData, toast])
+    localStorage.removeItem('addressData')
+  }, [])
 
   return {
     tableData,
@@ -47,9 +74,6 @@ export function useAddressData() {
     setIsLoading,
     addOrUpdateAddresses,
     deleteAddresses,
-    clearData,
-  } as const
+    clearAllData,
+  }
 }
-
-export type UseAddressDataReturn = ReturnType<typeof useAddressData>
-

@@ -1,60 +1,55 @@
 // components/address/TablePagination.tsx
 import React from 'react'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-
-interface TablePaginationProps {
-  currentPage: number
-  pageCount: number
-  onPageChange: (page: number) => void
-  totalItems: number
-}
+import { Button } from "@/components/ui/button"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { usePagination } from '@/hooks/usePagination'
+import type { PaginationProps } from '@/types'
 
 export default function TablePagination({
   currentPage,
   pageCount,
   onPageChange,
   totalItems
-}: TablePaginationProps) {
+}: PaginationProps) {
+  const pagination = usePagination({
+    totalItems,
+    itemsPerPage: 10,
+    currentPage,
+    onChange: onPageChange
+  })
+
+  if (pageCount <= 1) return null
+
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-      <Pagination>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-            />
-          </PaginationItem>
+    <div className="flex items-center justify-between py-4">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => pagination.prevPage()}
+          disabled={!pagination.canPrevPage}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => pagination.nextPage()}
+          disabled={!pagination.canNextPage}
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
 
-          {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
-            <PaginationItem key={page}>
-              <PaginationLink
-                onClick={() => onPageChange(page)}
-                isActive={currentPage === page}
-              >
-                {page}
-              </PaginationLink>
-            </PaginationItem>
-          ))}
-
-          <PaginationItem>
-            <PaginationNext
-              onClick={() => onPageChange(Math.min(pageCount, currentPage + 1))}
-              disabled={currentPage === pageCount}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-
-      <div className="text-sm text-muted-foreground">
-        Total: {totalItems} {totalItems === 1 ? 'entry' : 'entries'}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span>
+          Page {pagination.currentPage} of {pagination.pageCount}
+        </span>
+        <span>
+          ({totalItems} total items)
+        </span>
       </div>
     </div>
   )

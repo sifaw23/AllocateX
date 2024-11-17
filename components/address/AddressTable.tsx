@@ -1,17 +1,16 @@
 // components/address/AddressTable.tsx
+'use client'
+
 import React, { useCallback } from 'react'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpDown } from 'lucide-react'
-import { useAddressData } from '@/hooks/useAddressData'
+import { ArrowUpDown, Upload, Download, Trash2, Search } from 'lucide-react'
+import { useAddressData } from '@/context/AddressContext'
 import { useTableControls } from '@/hooks/useTableControls'
-import TableActions from './TableActions'
-import TablePagination from './TablePagination'
 import { formatAmount } from '@/utils/formatters'
 import { copyToClipboard } from '@/utils/clipboard'
 import { useToast } from "@/components/ui/use-toast"
-import type { Toast } from "@/components/ui/use-toast"
 import type { AddressData } from '@/types'
 import {
   Tooltip,
@@ -19,6 +18,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { downloadExcel, downloadCSV, downloadJSON } from '@/utils/fileHandlers'
 
 export default function AddressTable() {
   const { tableData, deleteAddresses } = useAddressData()
@@ -30,6 +44,7 @@ export default function AddressTable() {
     pageCount 
   } = useTableControls(tableData)
   const { toast } = useToast()
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
 
   const handleSelectAll = useCallback(() => {
     const newSelected = controls.selectedAddresses.size === paginatedData.length
@@ -56,7 +71,7 @@ export default function AddressTable() {
         ? "The address has been copied to your clipboard."
         : "Failed to copy the address. Please try again.",
       variant: success ? "default" : "destructive"
-    } as Toast)
+    })
   }, [toast])
 
   const handleDelete = useCallback(() => {
@@ -65,16 +80,36 @@ export default function AddressTable() {
     toast({
       title: "Addresses deleted",
       description: `${count} ${count === 1 ? 'address has' : 'addresses have'} been removed.`,
-    } as Toast)
+    })
     updateControls({ selectedAddresses: new Set<string>() })
+    setShowDeleteDialog(false)
   }, [controls.selectedAddresses, deleteAddresses, toast, updateControls])
 
   const handleExport = useCallback((format: 'excel' | 'csv' | 'json') => {
-    toast({
-      title: "Export complete",
-      description: `Data has been exported in ${format.toUpperCase()} format.`,
-    } as Toast)
-  }, [toast])
+    try {
+      switch (format) {
+        case 'excel':
+          downloadExcel(sortedAndFilteredData)
+          break
+        case 'csv':
+          downloadCSV(sortedAndFilteredData)
+          break
+        case 'json':
+          downloadJSON(sortedAndFilteredData)
+          break
+      }
+      toast({
+        title: "Export complete",
+        description: `Data has been exported in ${format.toUpperCase()} format.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your data.",
+        variant: "destructive"
+      })
+    }
+  }, [sortedAndFilteredData, toast])
 
   const handleSort = useCallback(() => {
     updateControls({ 
@@ -82,15 +117,20 @@ export default function AddressTable() {
     })
   }, [controls.sortOrder, updateControls])
 
-  if (tableData.length === 0) {
+  const handlePageChange = useCallback((page: number) => {
+    updateControls({ currentPage: page })
+  }, [updateControls])
+
+  if (!tableData || tableData.length === 0) {
     return (
-      <div className="text-center py-12 bg-background border rounded-md">
-        <div className="space-y-3">
-          <p className="text-muted-foreground font-medium">
-            No addresses added yet
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Start by adding addresses using the input above or upload a file
+      <div className="rounded-md border border-dashed p-8 text-center">
+        <div className="flex flex-col items-center space-y-2">
+          <div className="rounded-full bg-muted p-3">
+            <Upload className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h3 className="font-semibold text-lg">No addresses added yet</h3>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Start by adding addresses using the input above or upload a file containing your address data
           </p>
         </div>
       </div>
@@ -99,17 +139,68 @@ export default function AddressTable() {
 
   return (
     <div className="space-y-4">
-      <TableActions
-        selectedCount={controls.selectedAddresses.size}
-        totalCount={sortedAndFilteredData.length}
-        searchTerm={controls.searchTerm}
-        onSearchChange={(term: string) => updateControls({ searchTerm: term })}
-        onDelete={handleDelete}
-        onExport={handleExport}
-        data={sortedAndFilteredData}
-      />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+          <Input
+            type="text"
+            placeholder="Search addresses..."
+            value={controls.searchTerm}
+            onChange={(e) => updateControls({ searchTerm: e.target.value })}
+            className="pl-10"
+          />
+        </div>
 
-      <div className="rounded-md border bg-background">
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('json')}>
+                JSON (.json)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DialogTrigger asChild>
+              <Button
+                variant="destructive"
+                disabled={controls.selectedAddresses.size === 0}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete ({controls.selectedAddresses.size})
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+              </DialogHeader>
+              <p>Are you sure you want to delete {controls.selectedAddresses.size} selected addresses?</p>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Delete
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <div className="rounded-md border bg-background overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -189,13 +280,29 @@ export default function AddressTable() {
       </div>
 
       <div className="flex items-center justify-between">
-        <TablePagination
-          currentPage={controls.currentPage}
-          pageCount={pageCount}
-          onPageChange={(page: number) => updateControls({ currentPage: page })}
-          totalItems={sortedAndFilteredData.length}
-        />
-
+        <div className="flex items-center space-x-6">
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(Math.max(1, controls.currentPage - 1))}
+              disabled={controls.currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(Math.min(pageCount, controls.currentPage + 1))}
+              disabled={controls.currentPage === pageCount}
+            >
+              Next
+            </Button>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            Page {controls.currentPage} of {Math.max(1, pageCount)}
+          </span>
+        </div>
         <div className="text-sm text-muted-foreground">
           Total addresses: {sortedAndFilteredData.length}
         </div>

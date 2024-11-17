@@ -1,25 +1,37 @@
 // hooks/useDarkMode.ts
-import { useEffect } from 'react'
-import { useLocalStorage } from './useLocalStorage'
+import { useState, useEffect } from 'react'
 
 export function useDarkMode() {
-  const [darkMode, setDarkMode] = useLocalStorage<boolean>('darkMode', false)
+  const [darkMode, setDarkMode] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
+    // Get initial dark mode preference
+    const savedDarkMode = localStorage.getItem('darkMode')
+    if (savedDarkMode) {
+      setDarkMode(JSON.parse(savedDarkMode))
     } else {
-      document.documentElement.classList.remove('dark')
+      // Check system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      setDarkMode(prefersDark)
     }
-  }, [darkMode])
+    setMounted(true)
+  }, [])
 
-  const toggleDarkMode = () => setDarkMode(!darkMode)
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('darkMode', JSON.stringify(darkMode))
+      if (darkMode) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+  }, [darkMode, mounted])
 
   return {
-    darkMode,
+    darkMode: mounted ? darkMode : false,
     setDarkMode,
-    toggleDarkMode,
-  } as const
+    mounted
+  }
 }
-
-export type UseDarkModeReturn = ReturnType<typeof useDarkMode>
